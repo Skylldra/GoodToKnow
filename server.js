@@ -10,43 +10,30 @@ const app    = express();
 const server = http.createServer(app);
 const io     = new Server(server, { cors: { origin: '*' } });
 
-// ─── Static files ────────────────────────────────────────────────────────────
 app.use(express.static(path.join(__dirname, 'public')));
-
 app.get('/host', (_req, res) =>
   res.sendFile(path.join(__dirname, 'public', 'host.html'))
 );
 
 // ─── Game state ───────────────────────────────────────────────────────────────
-/*
-  Phases:
-    lobby       → Spieler hinzufügen
-    question    → Frage + Timer
-    voting      → Abstimmung läuft
-    tiebreak    → Unentschieden-Abstimmung
-    elimination → Ergebnis zeigen (Herz verloren / raus)
-    finals      → Finale (subphase: A_answering | B_answering | results)
-    gameover    → Gewinner feststehen
-*/
-
 function freshState() {
   return {
     phase:         'lobby',
-    players:       [],           // [{name, hearts, alive}]
-    question:      null,         // {q, a}
+    players:       [],
+    question:      null,
     usedQ:         new Set(),
     timer:         { rem: 180, total: 180, running: false },
-    votes:         {},           // {voter: target}
-    voted:         [],           // names that already voted
-    tiebreak:      [],           // names in tiebreak round
-    eliminated:    null,         // {name, heartsLeft, isOut}
+    votes:         {},
+    voted:         [],
+    tiebreak:      [],
+    eliminated:    null,
     finals:        null,
     winner:        null,
-    currentPlayer: null,         // name of player whose turn it is
+    currentPlayer: null,
+    roundHistory:  [],   // [{player, q, a, correct}] – alle Fragen dieser Runde
   };
 }
 
-// Returns the name of the next alive player after currentPlayer
 function nextAlivePlayer() {
   const alive = G.players.filter(p => p.alive);
   if (!alive.length) return null;
@@ -54,36 +41,16 @@ function nextAlivePlayer() {
   return alive[(idx + 1) % alive.length].name;
 }
 
-/*
-  finals shape:
-  {
-    playerA, playerB,
-    questions: [{q,a}, ...],
-    qIdx: number,
-    current: playerA | playerB,
-    scoresA: [bool, ...],
-    scoresB: [bool, ...],
-    scoreA: number,   (set after B finishes)
-    scoreB: number,
-    round: number,
-    subphase: 'A_answering' | 'B_answering' | 'results'
-  }
-*/
-
-let G          = freshState();
-let timerTick  = null;
+let G         = freshState();
+let timerTick = null;
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
-
 function pickQ() {
   const avail = [];
   for (let i = 0; i < QUESTIONS.length; i++) {
     if (!G.usedQ.has(i)) avail.push(i);
   }
-  if (!avail.length) {
-    G.usedQ = new Set();
-    return pickQ();
-  }
+  if (!avail.length) { G.usedQ = new Set(); return pickQ(); }
   const i = avail[Math.floor(Math.random() * avail.length)];
   G.usedQ.add(i);
   return QUESTIONS[i];
@@ -96,7 +63,6 @@ function pickN(n) {
 }
 
 function toClient() {
-  // Convert Set to a plain count so JSON.stringify works
   return {
     phase:         G.phase,
     players:       G.players,
@@ -110,6 +76,7 @@ function toClient() {
     winner:        G.winner,
     qUsed:         G.usedQ.size,
     currentPlayer: G.currentPlayer,
+    roundHistory:  G.roundHistory,
   };
 }
 
@@ -128,11 +95,10 @@ function startTimer() {
     if (G.timer.rem <= 0) {
       G.timer.rem = 0;
       stopTimer();
-      // Auto-transition to voting when timer hits 0
       if (G.phase === 'question') {
-        G.phase   = 'voting';
-        G.votes   = {};
-        G.voted   = [];
+        G.phase    = 'voting';
+        G.votes    = {};
+        G.voted    = [];
         G.tiebreak = [];
       }
     }
@@ -155,7 +121,6 @@ function applyLoss(loserName) {
   p.hearts = Math.max(0, p.hearts - 1);
   if (p.hearts === 0) p.alive = false;
   G.eliminated = { name: loserName, heartsLeft: p.hearts, isOut: !p.alive };
-
   const alive = G.players.filter(x => x.alive);
   if (alive.length <= 1) {
     G.winner = alive.length ? alive[0].name : loserName;
@@ -188,10 +153,11 @@ io.on('connection', socket => {
 
   socket.on('startGame', () => {
     if (G.phase !== 'lobby' || G.players.length < 2) return;
-    G.question       = pickQ();
-    G.phase          = 'question';
-    G.timer          = { rem: 180, total: 180, running: true };
-    G.currentPlayer  = G.players[0].name;  // first player starts
+    G.currentPlayer = G.players[0].name;
+    G.question      = pickQ();
+    G.roundHistory  = [];
+    G.phase         = 'question';
+    G.timer         = { rem: 180, total: 180, running: true };
     startTimer();
     pub();
   });
@@ -209,6 +175,20 @@ io.on('connection', socket => {
     pub();
   });
 
+  // Host marks current answer as correct or wrong → next player + new question
+  socket.on('markAnswer', correct => {
+    if (G.phase !== 'question' || !G.question) return;
+    G.roundHistory.push({
+      player:  G.currentPlayer,
+      q:       G.question.q,
+      a:       G.question.a,
+      correct: !!correct,
+    });
+    G.currentPlayer = nextAlivePlayer();
+    G.question      = pickQ();
+    pub();
+  });
+
   socket.on('startVoting', () => {
     if (G.phase !== 'question') return;
     stopTimer();
@@ -219,7 +199,7 @@ io.on('connection', socket => {
     pub();
   });
 
-  /* ── VOTING (player & host) ── */
+  /* ── VOTING ── */
   socket.on('vote', ({ voter, target }) => {
     if (!['voting', 'tiebreak'].includes(G.phase)) return;
     if (G.voted.includes(voter)) return;
@@ -239,7 +219,6 @@ io.on('connection', socket => {
     const counts = tally(pool);
     const max    = Math.max(0, ...Object.values(counts));
 
-    // If nobody voted → pick a random player to lose
     if (max === 0) {
       const alive = G.players.filter(p => p.alive);
       return applyLoss(alive[Math.floor(Math.random() * alive.length)].name);
@@ -263,25 +242,18 @@ io.on('connection', socket => {
     const alive = G.players.filter(p => p.alive);
 
     if (alive.length === 2) {
-      // → Finale
       G.finals = {
-        playerA:  alive[0].name,
-        playerB:  alive[1].name,
-        questions: pickN(10),
-        qIdx:     0,
-        current:  alive[0].name,
-        scoresA:  [],
-        scoresB:  [],
-        scoreA:   0,
-        scoreB:   0,
-        round:    1,
-        subphase: 'A_answering',
+        playerA: alive[0].name, playerB: alive[1].name,
+        questions: pickN(10), qIdx: 0, current: alive[0].name,
+        scoresA: [], scoresB: [], scoreA: 0, scoreB: 0,
+        round: 1, subphase: 'A_answering',
       };
       G.phase      = 'finals';
       G.eliminated = null;
     } else {
-      G.currentPlayer = nextAlivePlayer();   // rotate to next player
+      G.currentPlayer = nextAlivePlayer();
       G.question      = pickQ();
+      G.roundHistory  = [];
       G.phase         = 'question';
       G.timer         = { rem: 180, total: 180, running: true };
       G.votes         = {};
@@ -297,29 +269,20 @@ io.on('connection', socket => {
   socket.on('judgeAnswer', correct => {
     if (G.phase !== 'finals' || !G.finals) return;
     const F = G.finals;
-
     if (F.current === F.playerA) F.scoresA.push(!!correct);
     else                          F.scoresB.push(!!correct);
-
     F.qIdx++;
-
     if (F.qIdx >= F.questions.length) {
       if (F.current === F.playerA) {
-        // Switch to Player B
-        F.current  = F.playerB;
-        F.qIdx     = 0;
-        F.subphase = 'B_answering';
+        F.current = F.playerB; F.qIdx = 0; F.subphase = 'B_answering';
       } else {
-        // Both players done
-        F.scoreA   = F.scoresA.filter(Boolean).length;
-        F.scoreB   = F.scoresB.filter(Boolean).length;
+        F.scoreA = F.scoresA.filter(Boolean).length;
+        F.scoreB = F.scoresB.filter(Boolean).length;
         F.subphase = 'results';
-
         if (F.scoreA !== F.scoreB) {
           G.winner = F.scoreA > F.scoreB ? F.playerA : F.playerB;
           G.phase  = 'gameover';
         }
-        // If tied: wait for host to start new finals round
       }
     }
     pub();
@@ -329,27 +292,16 @@ io.on('connection', socket => {
     if (G.phase !== 'finals' || !G.finals) return;
     const F = G.finals;
     if (F.subphase !== 'results') return;
-    F.round++;
-    F.questions = pickN(10);
-    F.qIdx      = 0;
-    F.current   = F.playerA;
-    F.scoresA   = [];
-    F.scoresB   = [];
-    F.scoreA    = 0;
-    F.scoreB    = 0;
-    F.subphase  = 'A_answering';
+    F.round++; F.questions = pickN(10); F.qIdx = 0; F.current = F.playerA;
+    F.scoresA = []; F.scoresB = []; F.scoreA = 0; F.scoreB = 0;
+    F.subphase = 'A_answering';
     pub();
   });
 
   /* ── RESET ── */
-  socket.on('resetGame', () => {
-    stopTimer();
-    G = freshState();
-    pub();
-  });
+  socket.on('resetGame', () => { stopTimer(); G = freshState(); pub(); });
 });
 
-// ─── Start ────────────────────────────────────────────────────────────────────
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`\n🎮  GoodToKnow läuft auf http://localhost:${PORT}`);
