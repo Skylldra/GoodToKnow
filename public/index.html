@@ -279,9 +279,14 @@ function buildLobby(){
 
 function buildQuestion(){
   const q=S.question||{};
-  return `<div class="card">
-    <div class="phase-pill"><span class="dot-pulse"></span>FRAGE</div>
-    <div class="timer-wrap">
+  const cp=S.currentPlayer||'';
+  return `<div class="card" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.1)">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:2rem">🎯</div>
+      <div style="flex:1">
+        <div style="font-size:.6rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--primary);margin-bottom:2px">Jetzt dran</div>
+        <div style="font-size:1.5rem;font-weight:900">${esc(cp)}</div>
+      </div>
       <div class="timer-svg-box">${buildTimerSVG(S.timer.rem,S.timer.total)}</div>
     </div>
   </div>

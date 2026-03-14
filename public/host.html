@@ -79,6 +79,7 @@ body{
   backdrop-filter:blur(8px);transition:all .35s;
 }
 .p-card.dead{opacity:.35;filter:grayscale(1);}
+.p-card.current-player{border-color:var(--primary);background:rgba(139,92,246,.15);box-shadow:0 0 16px rgba(139,92,246,.2);}
 .p-card.loser{border-color:var(--heart);background:rgba(239,68,68,.1);animation:shake .4s ease;}
 @keyframes shake{0%,100%{transform:translateX(0)}25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
 .p-name{font-weight:600;font-size:.92rem;}
@@ -307,20 +308,23 @@ function timerColor(rem, total) {
   if (p > .18) return '#f59e0b';
   return '#ef4444';
 }
-function buildTimerSVG(rem, total) {
-  const R = 66, C = 414.69; // 2π×66
+function buildTimerSVG(rem, total, size = 160) {
+  const half = size / 2;
+  const R = half * 0.825;
+  const C = 2 * Math.PI * R;
   const col = timerColor(rem, total);
   const off = C * (1 - rem / total);
+  const fontSize = size < 120 ? '1.5rem' : '2.2rem';
   return `
-  <svg viewBox="0 0 160 160" width="160" height="160" style="display:block">
-    <circle cx="80" cy="80" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="8"/>
-    <circle cx="80" cy="80" r="${R}" fill="none" stroke="${col}" stroke-width="8"
-      stroke-dasharray="${C}" stroke-dashoffset="${off}"
-      stroke-linecap="round" transform="rotate(-90 80 80)"
+  <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block">
+    <circle cx="${half}" cy="${half}" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="8"/>
+    <circle cx="${half}" cy="${half}" r="${R}" fill="none" stroke="${col}" stroke-width="8"
+      stroke-dasharray="${C.toFixed(2)}" stroke-dashoffset="${off.toFixed(2)}"
+      stroke-linecap="round" transform="rotate(-90 ${half} ${half})"
       style="transition:stroke-dashoffset 1s linear,stroke .5s"/>
   </svg>
   <div class="timer-center">
-    <div class="timer-time" style="color:${col}">${fmt(rem)}</div>
+    <div class="timer-time" style="color:${col};font-size:${fontSize}">${fmt(rem)}</div>
     <div class="timer-lbl">${S.timer.running ? 'läuft' : 'pausiert'}</div>
   </div>`;
 }
@@ -338,8 +342,9 @@ function renderSidebar() {
   el.innerHTML = S.players.map(p => {
     const vc = voteCounts[p.name] || 0;
     const isLoser = vc === max && max > 0 && ['voting','tiebreak'].includes(S.phase) && p.alive;
-    return `<div class="p-card ${p.alive?'':'dead'}${isLoser?' loser':''}">
-      <span class="p-name">${esc(p.name)}</span>
+    const isCurrent = p.name === S.currentPlayer && p.alive && S.phase === 'question';
+    return `<div class="p-card ${p.alive?'':'dead'}${isLoser?' loser':''}${isCurrent?' current-player':''}">
+      <span class="p-name">${esc(p.name)}${isCurrent?' <span style="font-size:.65rem;color:var(--primary)">▶ dran</span>':''}</span>
       <div class="p-meta">
         ${vc>0&&p.alive ? `<span class="vote-badge ${isLoser?'leader':''}">${vc}✗</span>` : ''}
         <span class="hearts">${hearts(p.hearts)}</span>
@@ -400,17 +405,26 @@ function addP() {
 
 function buildQuestion() {
   const q = S.question || {};
+  const cp = S.currentPlayer || '';
   return `
-  <div class="card">
-    <div class="phase-pill"><span class="dot-pulse"></span>FRAGE LÄUFT</div>
-    <div class="timer-wrap">
-      <div class="timer-svg-box">${buildTimerSVG(S.timer.rem, S.timer.total)}</div>
-      <div class="timer-controls">
-        ${S.timer.running
-          ? `<button class="btn btn-out" onclick="socket.emit('pauseTimer')">⏸ Pause</button>`
-          : `<button class="btn btn-p" onclick="socket.emit('resumeTimer')" ${S.timer.rem<=0?'disabled':''}>▶ Weiter</button>`}
-        <button class="btn btn-gold" onclick="socket.emit('startVoting')">📊 Abstimmung starten</button>
+  <div class="card" style="border-color:rgba(139,92,246,.4);background:rgba(139,92,246,.1)">
+    <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+      <div style="font-size:2.2rem">🎯</div>
+      <div>
+        <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--primary);margin-bottom:3px">Jetzt dran</div>
+        <div style="font-size:1.7rem;font-weight:900">${esc(cp)}</div>
       </div>
+      <div style="margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:8px">
+        <div class="timer-svg-box" style="width:100px;height:100px">
+          ${buildTimerSVG(S.timer.rem, S.timer.total, 100)}
+        </div>
+      </div>
+    </div>
+    <div class="timer-controls" style="margin-top:12px">
+      ${S.timer.running
+        ? `<button class="btn btn-out" onclick="socket.emit('pauseTimer')">⏸ Pause</button>`
+        : `<button class="btn btn-p" onclick="socket.emit('resumeTimer')" ${S.timer.rem<=0?'disabled':''}>▶ Weiter</button>`}
+      <button class="btn btn-gold" onclick="socket.emit('startVoting')">📊 Abstimmung starten</button>
     </div>
   </div>
   <div class="card">

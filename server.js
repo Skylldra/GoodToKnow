@@ -31,18 +31,27 @@ app.get('/host', (_req, res) =>
 
 function freshState() {
   return {
-    phase:     'lobby',
-    players:   [],           // [{name, hearts, alive}]
-    question:  null,         // {q, a}
-    usedQ:     new Set(),
-    timer:     { rem: 180, total: 180, running: false },
-    votes:     {},           // {voter: target}
-    voted:     [],           // names that already voted
-    tiebreak:  [],           // names in tiebreak round
-    eliminated: null,        // {name, heartsLeft, isOut}
-    finals:    null,
-    winner:    null,
+    phase:         'lobby',
+    players:       [],           // [{name, hearts, alive}]
+    question:      null,         // {q, a}
+    usedQ:         new Set(),
+    timer:         { rem: 180, total: 180, running: false },
+    votes:         {},           // {voter: target}
+    voted:         [],           // names that already voted
+    tiebreak:      [],           // names in tiebreak round
+    eliminated:    null,         // {name, heartsLeft, isOut}
+    finals:        null,
+    winner:        null,
+    currentPlayer: null,         // name of player whose turn it is
   };
+}
+
+// Returns the name of the next alive player after currentPlayer
+function nextAlivePlayer() {
+  const alive = G.players.filter(p => p.alive);
+  if (!alive.length) return null;
+  const idx = alive.findIndex(p => p.name === G.currentPlayer);
+  return alive[(idx + 1) % alive.length].name;
 }
 
 /*
@@ -89,17 +98,18 @@ function pickN(n) {
 function toClient() {
   // Convert Set to a plain count so JSON.stringify works
   return {
-    phase:     G.phase,
-    players:   G.players,
-    question:  G.question,
-    timer:     G.timer,
-    votes:     G.votes,
-    voted:     G.voted,
-    tiebreak:  G.tiebreak,
-    eliminated: G.eliminated,
-    finals:    G.finals,
-    winner:    G.winner,
-    qUsed:     G.usedQ.size,
+    phase:         G.phase,
+    players:       G.players,
+    question:      G.question,
+    timer:         G.timer,
+    votes:         G.votes,
+    voted:         G.voted,
+    tiebreak:      G.tiebreak,
+    eliminated:    G.eliminated,
+    finals:        G.finals,
+    winner:        G.winner,
+    qUsed:         G.usedQ.size,
+    currentPlayer: G.currentPlayer,
   };
 }
 
@@ -178,9 +188,10 @@ io.on('connection', socket => {
 
   socket.on('startGame', () => {
     if (G.phase !== 'lobby' || G.players.length < 2) return;
-    G.question = pickQ();
-    G.phase    = 'question';
-    G.timer    = { rem: 180, total: 180, running: true };
+    G.question       = pickQ();
+    G.phase          = 'question';
+    G.timer          = { rem: 180, total: 180, running: true };
+    G.currentPlayer  = G.players[0].name;  // first player starts
     startTimer();
     pub();
   });
@@ -269,13 +280,14 @@ io.on('connection', socket => {
       G.phase      = 'finals';
       G.eliminated = null;
     } else {
-      G.question   = pickQ();
-      G.phase      = 'question';
-      G.timer      = { rem: 180, total: 180, running: true };
-      G.votes      = {};
-      G.voted      = [];
-      G.tiebreak   = [];
-      G.eliminated = null;
+      G.currentPlayer = nextAlivePlayer();   // rotate to next player
+      G.question      = pickQ();
+      G.phase         = 'question';
+      G.timer         = { rem: 180, total: 180, running: true };
+      G.votes         = {};
+      G.voted         = [];
+      G.tiebreak      = [];
+      G.eliminated    = null;
       startTimer();
     }
     pub();
