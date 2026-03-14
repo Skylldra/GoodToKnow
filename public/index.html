@@ -1,0 +1,415 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>GoodToKnow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0920;--bg2:#16103a;--card:rgba(255,255,255,.07);--border:rgba(255,255,255,.11);
+  --primary:#8b5cf6;--accent:#06b6d4;--heart:#ef4444;--green:#22c55e;--gold:#f59e0b;
+  --text:#f1f5f9;--muted:#94a3b8;--r:16px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{height:100%;overflow-x:hidden;}
+body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,var(--bg) 0%,var(--bg2) 100%);min-height:100vh;color:var(--text);display:flex;flex-direction:column;}
+.hdr{display:flex;align-items:center;justify-content:space-between;padding:11px 18px;background:rgba(11,9,32,.88);backdrop-filter:blur(12px);border-bottom:1px solid var(--border);flex-shrink:0;}
+.logo{font-size:1.2rem;font-weight:900;background:linear-gradient(135deg,var(--primary),var(--accent));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.player-badge{background:rgba(139,92,246,.2);border:1px solid rgba(139,92,246,.35);color:#c4b5fd;padding:4px 11px;border-radius:20px;font-size:.65rem;font-weight:700;letter-spacing:.08em;}
+.body{flex:1;display:flex;flex-direction:column;padding:12px;gap:10px;overflow-y:auto;}
+.card{background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:18px;backdrop-filter:blur(10px);}
+
+/* Phase pill */
+.phase-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(139,92,246,.18);border:1px solid rgba(139,92,246,.3);color:#c4b5fd;border-radius:20px;padding:4px 12px;font-size:.65rem;font-weight:700;letter-spacing:.09em;margin-bottom:10px;}
+.dot-p{width:6px;height:6px;border-radius:50%;background:var(--primary);animation:pulse 1.4s infinite;flex-shrink:0;}
+@keyframes pulse{0%,100%{transform:scale(1);opacity:1}50%{transform:scale(1.5);opacity:.5}}
+@keyframes pop{0%{transform:scale(0)}70%{transform:scale(1.2)}100%{transform:scale(1)}}
+@keyframes float{0%,100%{transform:translateY(0)}50%{transform:translateY(-8px)}}
+
+/* Player strip */
+.players-strip{display:flex;flex-wrap:wrap;gap:7px;background:rgba(0,0,0,.2);border:1px solid var(--border);border-radius:var(--r);padding:10px;}
+.strip-p{display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.06);border:1px solid var(--border);border-radius:9px;padding:5px 10px;transition:all .3s;}
+.strip-p.dead{opacity:.3;filter:grayscale(1);}
+.strip-p.active{border-color:var(--primary);background:rgba(139,92,246,.15);}
+.strip-name{font-size:.78rem;font-weight:600;}
+.strip-hearts{font-size:.72rem;}
+.hf{color:var(--heart);}
+.he{opacity:.2;}
+
+/* Current player banner */
+.cp-card{background:rgba(139,92,246,.12);border:1px solid rgba(139,92,246,.4);border-radius:var(--r);padding:14px 16px;display:flex;align-items:center;gap:12px;}
+.cp-icon{font-size:1.8rem;flex-shrink:0;}
+.cp-label{font-size:.58rem;font-weight:700;text-transform:uppercase;letter-spacing:.12em;color:var(--primary);margin-bottom:2px;}
+.cp-name{font-size:1.4rem;font-weight:900;line-height:1;}
+.cp-sub{font-size:.72rem;color:var(--muted);margin-top:2px;}
+
+/* Question */
+.q-lbl{font-size:.63rem;font-weight:700;text-transform:uppercase;letter-spacing:.14em;color:var(--primary);margin-bottom:9px;text-align:center;}
+.q-text{font-size:clamp(1.2rem,4.5vw,2rem);font-weight:700;line-height:1.35;text-align:center;}
+
+/* Voting */
+.vote-title{font-size:.88rem;font-weight:700;text-align:center;margin-bottom:13px;color:var(--muted);}
+.vote-title strong{color:var(--text);}
+.vote-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:9px;}
+.vote-btn{padding:13px 8px;border-radius:11px;border:1px solid var(--border);background:rgba(255,255,255,.06);color:var(--text);font-family:inherit;font-size:.92rem;font-weight:700;cursor:pointer;transition:all .2s;text-align:center;}
+.vote-btn:hover{border-color:var(--primary);background:rgba(139,92,246,.15);transform:translateY(-2px);}
+.vote-btn.self-btn{border-color:var(--accent);background:rgba(6,182,212,.1);color:var(--accent);}
+.vote-btn.target-btn{border-color:rgba(239,68,68,.4);background:rgba(239,68,68,.08);}
+.vote-btn.target-btn:hover{background:rgba(239,68,68,.22);}
+.vote-success{text-align:center;padding:20px 10px;display:flex;flex-direction:column;align-items:center;gap:9px;}
+.v-check{font-size:2.8rem;animation:pop .4s ease;}
+.v-confirm{font-size:.95rem;font-weight:600;}
+.v-target{font-size:.82rem;color:var(--muted);}
+
+/* History mini (player view) */
+.hist-mini{display:flex;flex-direction:column;gap:5px;}
+.hist-row{display:flex;align-items:center;gap:8px;padding:7px 10px;border-radius:9px;border:1px solid var(--border);background:rgba(255,255,255,.03);font-size:.78rem;}
+.hist-row.correct{border-color:rgba(34,197,94,.3);}
+.hist-row.wrong{border-color:rgba(239,68,68,.3);}
+.hist-verdict{flex-shrink:0;}
+.hist-player{font-weight:700;flex-shrink:0;color:var(--primary);min-width:55px;}
+.hist-q{color:var(--muted);flex:1;}
+.hist-a{font-size:.75rem;font-weight:600;color:var(--text);flex-shrink:0;max-width:110px;text-align:right;}
+
+/* Elimination */
+.elim-box{text-align:center;padding:25px 14px;}
+.elim-icon{font-size:3.2rem;animation:pop .5s ease;}
+.elim-name{font-size:1.9rem;font-weight:900;margin:7px 0 4px;}
+.elim-hearts{font-size:1.3rem;margin-top:5px;}
+.elim-msg{font-size:.87rem;color:var(--muted);margin-top:5px;}
+
+/* Finals */
+.finals-box{text-align:center;padding:16px 8px;}
+.finals-pill{display:inline-flex;align-items:center;gap:6px;background:rgba(245,158,11,.15);border:1px solid rgba(245,158,11,.3);color:#fde68a;border-radius:20px;padding:4px 12px;font-size:.65rem;font-weight:700;letter-spacing:.08em;margin-bottom:12px;}
+.scores-wrap{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-bottom:12px;}
+.score-card{padding:11px 15px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:12px;text-align:center;transition:all .3s;}
+.score-card.active{border-color:var(--primary);background:rgba(139,92,246,.12);}
+.score-name{font-size:.9rem;font-weight:700;margin-bottom:3px;}
+.score-val{font-size:.78rem;color:var(--muted);}
+.dots-wrap{display:flex;gap:4px;justify-content:center;flex-wrap:wrap;margin-top:6px;}
+.dot{width:10px;height:10px;border-radius:50%;display:inline-block;}
+.dc{background:var(--green);}
+.dw{background:var(--heart);}
+.de{background:rgba(255,255,255,.15);}
+
+/* Gameover */
+.win-box{text-align:center;padding:36px 14px;}
+.trophy{font-size:3.8rem;animation:float 2.2s ease-in-out infinite;}
+.win-lbl{font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.2em;color:var(--muted);margin:11px 0 5px;}
+.win-name{font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,var(--gold),#fbbf24,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+.win-sub{font-size:.88rem;color:var(--muted);margin-top:5px;}
+
+/* Confetti */
+.confetti-cvs{position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:999;}
+
+/* Tiebreak banner */
+.tb-banner{background:rgba(245,158,11,.1);border:1px solid rgba(245,158,11,.3);border-radius:11px;padding:9px 13px;font-size:.8rem;color:#fde68a;text-align:center;margin-bottom:9px;}
+
+/* Wait screen */
+.wait-box{text-align:center;padding:28px 14px;}
+.wait-icon{font-size:3.2rem;margin-bottom:11px;animation:float 2.5s ease-in-out infinite;}
+.wait-title{font-size:1.4rem;font-weight:800;margin-bottom:5px;}
+.wait-sub{font-size:.87rem;color:var(--muted);}
+</style>
+</head>
+<body>
+<header class="hdr">
+  <div class="logo">GoodToKnow</div>
+  <div class="player-badge">👥 SPIELERANSICHT</div>
+</header>
+<div class="body" id="body"></div>
+<canvas class="confetti-cvs" id="confettiCanvas"></canvas>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+const socket = io();
+let S = null;
+let myName = sessionStorage.getItem('myName') || null;
+let myVote  = sessionStorage.getItem('myVote')  || null;
+
+socket.on('S', state => {
+  if (S && S.phase !== state.phase) {
+    myName = null; myVote = null;
+    sessionStorage.removeItem('myName');
+    sessionStorage.removeItem('myVote');
+  }
+  S = state;
+  render();
+});
+
+/* ── Helpers ── */
+function esc(s){ return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function fmt(s){ const m=Math.floor(s/60),sec=s%60; return `${m}:${String(sec).padStart(2,'0')}`; }
+function timerColor(rem,total){ const p=rem/total; return p>.4?'#22c55e':p>.18?'#f59e0b':'#ef4444'; }
+
+function timerSVG(rem, total, size) {
+  size = size || 110;
+  const half=size/2, R=Math.round(half*.82), C=+(2*Math.PI*R).toFixed(2);
+  const col=timerColor(rem,total), off=+(C*(1-rem/total)).toFixed(2);
+  const fs=size<100?'1.2rem':'1.6rem';
+  return `<div style="position:relative;width:${size}px;height:${size}px;flex-shrink:0;display:inline-block">
+    <svg viewBox="0 0 ${size} ${size}" width="${size}" height="${size}" style="display:block">
+      <circle cx="${half}" cy="${half}" r="${R}" fill="none" stroke="rgba(255,255,255,.1)" stroke-width="7"/>
+      <circle cx="${half}" cy="${half}" r="${R}" fill="none" stroke="${col}" stroke-width="7"
+        stroke-dasharray="${C}" stroke-dashoffset="${off}" stroke-linecap="round"
+        transform="rotate(-90 ${half} ${half})"
+        style="transition:stroke-dashoffset 1s linear,stroke .5s ease"/>
+    </svg>
+    <div style="position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;white-space:nowrap">
+      <div style="font-size:${fs};font-weight:900;color:${col};line-height:1">${fmt(rem)}</div>
+      <div style="font-size:.55rem;font-weight:600;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin-top:2px">${S&&S.timer.running?'läuft':'pausiert'}</div>
+    </div>
+  </div>`;
+}
+
+function heartsHtml(n,total=3){ let h=''; for(let i=0;i<total;i++) h+=`<span class="${i<n?'hf':'he'}">♥</span>`; return h; }
+
+/* ── Player strip ── */
+function buildStrip(){
+  if(!S||!S.players.length) return '';
+  return `<div class="players-strip">
+    ${S.players.map(p=>`
+      <div class="strip-p ${p.alive?'':'dead'} ${p.name===S.currentPlayer&&p.alive&&S.phase==='question'?'active':''}">
+        <span class="strip-name">${esc(p.name)}</span>
+        <span class="strip-hearts">${heartsHtml(p.hearts)}</span>
+      </div>`).join('')}
+  </div>`;
+}
+
+/* ── Main render ── */
+function render(){
+  const b=document.getElementById('body');
+  let html='';
+  switch(S.phase){
+    case 'lobby':       html=buildLobby(); break;
+    case 'question':    html=buildQuestion(); break;
+    case 'voting':      html=buildVoting(false); break;
+    case 'tiebreak':    html=buildVoting(true); break;
+    case 'elimination': html=buildElimination(); break;
+    case 'finals':      html=buildFinals(); break;
+    case 'gameover':    html=buildGameover(); startConfetti(); break;
+    default:            html='';
+  }
+  b.innerHTML=html+buildStrip();
+}
+
+/* ── Phases ── */
+function buildLobby(){
+  return `<div class="card wait-box">
+    <div class="wait-icon">🎮</div>
+    <div class="wait-title">GoodToKnow</div>
+    <div class="wait-sub">Warte auf den Host…</div>
+    ${S.players.length?`<div style="margin-top:14px;font-size:.8rem;color:var(--muted)">${S.players.length} Spieler: ${S.players.map(p=>esc(p.name)).join(', ')}</div>`:''}
+  </div>`;
+}
+
+function buildQuestion(){
+  const q=S.question||{};
+  const cp=S.currentPlayer||'';
+  const qNum=S.roundHistory.length+1;
+  return `
+  <div class="cp-card">
+    <div class="cp-icon">🎯</div>
+    <div style="flex:1">
+      <div class="cp-label">Jetzt dran</div>
+      <div class="cp-name">${esc(cp)}</div>
+      <div class="cp-sub">Frage ${qNum} dieser Runde</div>
+    </div>
+    ${timerSVG(S.timer.rem,S.timer.total,100)}
+  </div>
+  <div class="card" style="flex:1">
+    <div class="q-lbl">Frage</div>
+    <div class="q-text">${esc(q.q||'')}</div>
+  </div>
+  ${S.roundHistory.length>0?`
+  <div class="card">
+    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Diese Runde</div>
+    <div class="hist-mini">
+      ${S.roundHistory.slice().reverse().map(h=>`
+        <div class="hist-row ${h.correct?'correct':'wrong'}">
+          <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
+          <span class="hist-player">${esc(h.player)}</span>
+          <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+          <span class="hist-a">${esc(h.a)}</span>
+        </div>`).join('')}
+    </div>
+  </div>`:''}`;
+}
+
+function buildVoting(isTiebreak){
+  const q=S.question||{};
+  const alive=S.players.filter(p=>p.alive).map(p=>p.name);
+  const pool=isTiebreak?S.tiebreak:alive;
+  const alreadyVoted=myName&&S.voted.includes(myName);
+
+  if(alreadyVoted){
+    return `<div class="card">
+      <div class="phase-pill"><span class="dot-p"></span>ABSTIMMUNG</div>
+      <div class="vote-success">
+        <div class="v-check">✅</div>
+        <div class="v-confirm">Du hast abgestimmt!</div>
+        ${myVote?`<div class="v-target">Deine Stimme: <strong>${esc(myVote)}</strong></div>`:''}
+        <div style="margin-top:8px;font-size:.78rem;color:var(--muted)">Warte auf die Auswertung…</div>
+      </div>
+    </div>
+    ${S.roundHistory.length>0?`<div class="card">
+      <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Fragen dieser Runde</div>
+      <div class="hist-mini">
+        ${S.roundHistory.map(h=>`
+          <div class="hist-row ${h.correct?'correct':'wrong'}">
+            <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
+            <span class="hist-player">${esc(h.player)}</span>
+            <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+          <span class="hist-a">${esc(h.a)}</span>
+          </div>`).join('')}
+      </div>
+    </div>`:''}`;
+  }
+
+  if(!myName){
+    return `<div class="card">
+      ${isTiebreak?`<div class="tb-banner">⚖️ Stechen zwischen: ${pool.map(esc).join(', ')}</div>`:''}
+      <div class="phase-pill"><span class="dot-p"></span>ABSTIMMUNG</div>
+      <div class="vote-title"><strong>Schritt 1:</strong> Wähle deinen Namen</div>
+      <div class="vote-grid">
+        ${alive.map(n=>`<button class="vote-btn self-btn" onclick="selectMe('${esc(n)}')">${esc(n)}</button>`).join('')}
+      </div>
+    </div>
+    ${S.roundHistory.length>0?`<div class="card">
+      <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Fragen dieser Runde</div>
+      <div class="hist-mini">
+        ${S.roundHistory.map(h=>`
+          <div class="hist-row ${h.correct?'correct':'wrong'}">
+            <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
+            <span class="hist-player">${esc(h.player)}</span>
+            <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+            <span class="hist-a">${esc(h.a)}</span>
+          </div>`).join('')}
+      </div>
+    </div>`:''}`;
+  }
+
+  const targets=pool.filter(n=>n!==myName);
+  return `<div class="card">
+    ${isTiebreak?`<div class="tb-banner">⚖️ Stechen! Nur zwischen den genannten Spielern wählen.</div>`:''}
+    <div class="phase-pill"><span class="dot-p"></span>ABSTIMMUNG</div>
+    <div class="vote-title">Hallo <strong>${esc(myName)}</strong>!<br>Wessen Antwort war am schlechtesten?</div>
+    <div class="vote-grid">
+      ${targets.map(n=>`<button class="vote-btn target-btn" onclick="castVote('${esc(n)}')">${esc(n)}</button>`).join('')}
+    </div>
+    <div style="text-align:center;margin-top:10px">
+      <button style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;font-family:inherit"
+        onclick="myName=null;render()">← Name ändern</button>
+    </div>
+  </div>
+  ${S.roundHistory.length>0?`<div class="card">
+    <div style="font-size:.62rem;font-weight:700;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);margin-bottom:8px">Fragen dieser Runde</div>
+    <div class="hist-mini">
+      ${S.roundHistory.map(h=>`
+        <div class="hist-row ${h.correct?'correct':'wrong'}">
+          <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
+          <span class="hist-player">${esc(h.player)}</span>
+          <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+          <span class="hist-a">${esc(h.a)}</span>
+        </div>`).join('')}
+    </div>
+  </div>`:''}`;
+}
+
+function selectMe(name){ myName=name; sessionStorage.setItem('myName',name); render(); }
+function castVote(target){ if(!myName) return; myVote=target; sessionStorage.setItem('myVote',target); socket.emit('vote',{voter:myName,target}); }
+
+function buildElimination(){
+  const e=S.eliminated||{};
+  const heartStr=e.isOut?'💀':'❤️'.repeat(e.heartsLeft)+'🖤'.repeat(3-e.heartsLeft);
+  return `<div class="card elim-box">
+    <div class="phase-pill" style="justify-content:center"><span class="dot-p"></span>ERGEBNIS</div>
+    <div class="elim-icon">${e.isOut?'💀':'💔'}</div>
+    <div class="elim-name">${esc(e.name||'')}</div>
+    <div class="elim-hearts">${heartStr}</div>
+    <div class="elim-msg">${e.isOut?'ist ausgeschieden!':`hat noch ${e.heartsLeft} ${e.heartsLeft===1?'Herz':'Herzen'} übrig.`}</div>
+    <div style="margin-top:12px;font-size:.78rem;color:var(--muted)">Warte auf den Host…</div>
+  </div>`;
+}
+
+function buildFinals(){
+  const F=S.finals; if(!F) return '';
+  const q=F.questions[F.qIdx]||{};
+  const isResults=F.subphase==='results';
+
+  function dots(scores){
+    return Array.from({length:10},(_,i)=>{
+      if(i<scores.length) return `<div class="dot ${scores[i]?'dc':'dw'}"></div>`;
+      return `<div class="dot de"></div>`;
+    }).join('');
+  }
+
+  return `<div class="card finals-box">
+    <div class="finals-pill">🏆 FINALE – Runde ${F.round}</div>
+    <div class="scores-wrap">
+      <div class="score-card ${F.current===F.playerA&&!isResults?'active':''}">
+        <div class="score-name">${esc(F.playerA)}</div>
+        <div class="score-val">${F.scoresA.filter(Boolean).length}/${F.scoresA.length} richtig</div>
+        <div class="dots-wrap">${dots(F.scoresA)}</div>
+      </div>
+      <div class="score-card ${F.current===F.playerB&&!isResults?'active':''}">
+        <div class="score-name">${esc(F.playerB)}</div>
+        <div class="score-val">${F.scoresB.filter(Boolean).length}/${F.scoresB.length} richtig</div>
+        <div class="dots-wrap">${dots(F.scoresB)}</div>
+      </div>
+    </div>
+    ${isResults?`
+      <div style="font-size:1rem;font-weight:800;color:${F.scoreA===F.scoreB?'var(--gold)':'var(--green)'}">
+        ${F.scoreA===F.scoreB?`⚖️ Unentschieden (${F.scoreA}:${F.scoreB})`:`🏆 ${esc(F.scoreA>F.scoreB?F.playerA:F.playerB)} gewinnt! (${F.scoreA}:${F.scoreB})`}
+      </div>
+      <div style="margin-top:8px;font-size:.78rem;color:var(--muted)">Warte auf den Host…</div>
+    `:`
+      <div style="font-size:.82rem;color:var(--muted);margin-bottom:8px">Es antwortet: <strong style="color:var(--primary)">${esc(F.current)}</strong> · Frage ${F.qIdx+1}/10</div>
+      <div class="q-text" style="text-align:center">${esc(q.q||'')}</div>
+      <div style="margin-top:12px;font-size:.78rem;color:var(--muted)">Host wertet Antwort aus…</div>
+    `}
+  </div>`;
+}
+
+function buildGameover(){
+  return `<div class="card win-box">
+    <div class="trophy">🏆</div>
+    <div class="win-lbl">GEWINNER</div>
+    <div class="win-name">${esc(S.winner||'')}</div>
+    <div class="win-sub">hat GoodToKnow gewonnen! 🎉</div>
+  </div>`;
+}
+
+/* ── Confetti ── */
+let confettiActive=false;
+function startConfetti(){
+  if(confettiActive) return; confettiActive=true;
+  const cvs=document.getElementById('confettiCanvas');
+  const ctx=cvs.getContext('2d');
+  cvs.width=window.innerWidth; cvs.height=window.innerHeight;
+  const p=Array.from({length:100},()=>({
+    x:Math.random()*cvs.width,y:Math.random()*-cvs.height,
+    size:5+Math.random()*7,
+    color:['#8b5cf6','#06b6d4','#f59e0b','#ef4444','#22c55e','#f1f5f9'][Math.floor(Math.random()*6)],
+    speed:1.2+Math.random()*2,angle:Math.random()*Math.PI*2,spin:(Math.random()-.5)*.12,
+  }));
+  let f=0;
+  function draw(){
+    ctx.clearRect(0,0,cvs.width,cvs.height);
+    p.forEach(x=>{
+      x.y+=x.speed;x.x+=Math.sin(x.angle)*.7;x.angle+=x.spin;
+      if(x.y>cvs.height){x.y=-20;x.x=Math.random()*cvs.width;}
+      ctx.save();ctx.translate(x.x,x.y);ctx.rotate(x.angle);
+      ctx.fillStyle=x.color;ctx.fillRect(-x.size/2,-x.size/4,x.size,x.size/2);
+      ctx.restore();
+    });
+    if(++f<500) requestAnimationFrame(draw);
+    else{ctx.clearRect(0,0,cvs.width,cvs.height);confettiActive=false;}
+  }
+  draw();
+}
+</script>
+</body>
+</html>
