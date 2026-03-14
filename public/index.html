@@ -71,6 +71,7 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,var(--bg) 
 .hist-verdict{flex-shrink:0;}
 .hist-player{font-weight:700;flex-shrink:0;color:var(--primary);min-width:55px;}
 .hist-q{color:var(--muted);flex:1;}
+.hist-a{font-size:.75rem;font-weight:600;color:var(--text);flex-shrink:0;max-width:110px;text-align:right;}
 
 /* Elimination */
 .elim-box{text-align:center;padding:25px 14px;}
@@ -125,11 +126,15 @@ body{font-family:'Inter',sans-serif;background:linear-gradient(135deg,var(--bg) 
 <script>
 const socket = io();
 let S = null;
-let myName = null;
-let myVote  = null;
+let myName = sessionStorage.getItem('myName') || null;
+let myVote  = sessionStorage.getItem('myVote')  || null;
 
 socket.on('S', state => {
-  if (S && S.phase !== state.phase) { myName = null; myVote = null; }
+  if (S && S.phase !== state.phase) {
+    myName = null; myVote = null;
+    sessionStorage.removeItem('myName');
+    sessionStorage.removeItem('myVote');
+  }
   S = state;
   render();
 });
@@ -226,7 +231,8 @@ function buildQuestion(){
         <div class="hist-row ${h.correct?'correct':'wrong'}">
           <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
           <span class="hist-player">${esc(h.player)}</span>
-          <span class="hist-q">${esc(h.q.length>60?h.q.slice(0,57)+'…':h.q)}</span>
+          <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+          <span class="hist-a">${esc(h.a)}</span>
         </div>`).join('')}
     </div>
   </div>`:''}`;
@@ -255,7 +261,8 @@ function buildVoting(isTiebreak){
           <div class="hist-row ${h.correct?'correct':'wrong'}">
             <span class="hist-verdict">${h.correct?'✅':'❌'}</span>
             <span class="hist-player">${esc(h.player)}</span>
-            <span class="hist-q">${esc(h.q.length>60?h.q.slice(0,57)+'…':h.q)}</span>
+            <span class="hist-q">${esc(h.q.length>50?h.q.slice(0,47)+'…':h.q)}</span>
+          <span class="hist-a">${esc(h.a)}</span>
           </div>`).join('')}
       </div>
     </div>`:''}`;
@@ -298,8 +305,8 @@ function buildVoting(isTiebreak){
   </div>`:''}`;
 }
 
-function selectMe(name){ myName=name; render(); }
-function castVote(target){ if(!myName) return; myVote=target; socket.emit('vote',{voter:myName,target}); }
+function selectMe(name){ myName=name; sessionStorage.setItem('myName',name); render(); }
+function castVote(target){ if(!myName) return; myVote=target; sessionStorage.setItem('myVote',target); socket.emit('vote',{voter:myName,target}); }
 
 function buildElimination(){
   const e=S.eliminated||{};

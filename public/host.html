@@ -320,11 +320,12 @@ function buildQuestion(){
     </div>
     ${timerSVG(S.timer.rem, S.timer.total, 120)}
   </div>
+  ${S.timerDone?`<div style="background:rgba(245,158,11,.12);border:1px solid rgba(245,158,11,.4);border-radius:10px;padding:11px 16px;color:#fde68a;font-weight:700;font-size:.9rem;display:flex;align-items:center;gap:8px">⚠️ Zeit abgelaufen! Bitte aktuelle Frage noch als RICHTIG oder FALSCH werten.</div>`:''}
   <div class="timer-controls">
     ${S.timer.running
       ? `<button class="btn btn-out" onclick="socket.emit('pauseTimer')">⏸ Pause</button>`
       : `<button class="btn btn-p" onclick="socket.emit('resumeTimer')" ${S.timer.rem<=0?'disabled':''}>▶ Weiter</button>`}
-    <button class="btn btn-gold" onclick="socket.emit('startVoting')">📊 Abstimmung starten</button>
+    <button class="btn btn-gold" onclick="socket.emit('startVoting')" ${S.timerDone?'disabled':''}>📊 Abstimmung starten</button>
   </div>
   <div class="card">
     <div class="lbl lbl-p">Frage für ${esc(cp)}</div>
@@ -400,7 +401,10 @@ function buildVoting(isTiebreak){
       Abgestimmt: ${S.voted.length}/${totalVoters} &nbsp; ${votedLine}
     </div>
     <div style="display:flex;flex-direction:column;gap:7px;margin-bottom:13px">${tallyRows}</div>
-    <button class="btn btn-danger btn-lg" onclick="socket.emit('resolveVotes')">⚡ Ergebnis auswerten</button>
+    <div style="display:flex;gap:9px;flex-wrap:wrap">
+      <button class="btn btn-danger btn-lg" onclick="socket.emit('resolveVotes')">⚡ Ergebnis auswerten</button>
+      <button class="btn btn-out" onclick="socket.emit('resetVotes')">🔄 Abstimmung zurücksetzen</button>
+    </div>
   </div>
   ${historyHtml}`;
 }
