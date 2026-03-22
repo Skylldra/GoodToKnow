@@ -443,6 +443,13 @@ function buildVoting(isTiebreak){
       <button class="btn btn-danger btn-lg" onclick="socket.emit('resolveVotes')">⚡ Ergebnis auswerten</button>
       <button class="btn btn-out" onclick="socket.emit('resetVotes')">🔄 Abstimmung zurücksetzen</button>
     </div>
+    ${S.voted.length>0?`
+    <div style="margin-top:13px;padding-top:12px;border-top:1px solid var(--border)">
+      <div style="font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.11em;color:var(--muted);margin-bottom:8px">Einzelne Stimme zurücksetzen</div>
+      <div style="display:flex;gap:7px;flex-wrap:wrap">
+        ${S.voted.map(v=>`<button class="btn btn-out" style="padding:7px 14px;font-size:.82rem" onclick="socket.emit('resetVote','${esc(v)}')">${esc(v)}</button>`).join('')}
+      </div>
+    </div>`:''}
   </div>
   ${historyHtml}`;
 }
