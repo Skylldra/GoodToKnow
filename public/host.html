@@ -201,23 +201,27 @@ const socket = io();
 let S = null;
 
 /* Track last fully-rendered question state to avoid button-destroying re-renders on timer ticks */
-let _lrPhase = null, _lrQ = null, _lrCP = null, _lrHistLen = -1;
+let _lrPhase = null, _lrQ = null, _lrCP = null, _lrHistLen = -1, _lrQUsed = -1;
 
 socket.on('S', state => {
   S = state;
-  /* If only the timer changed (same question phase, same question, same player, same history),
-     do a cheap partial update so the RICHTIG/FALSCH buttons are never destroyed mid-click. */
+  /* If only the timer changed (same question phase, same question, same player, same history,
+     same question pool usage), do a cheap partial update so the RICHTIG/FALSCH buttons are
+     never destroyed mid-click. qUsed changes every time pickQ() is called, so it reliably
+     detects when a new question was loaded. */
   const onlyTimer = (
     state.phase === 'question' && _lrPhase === 'question' &&
     state.currentPlayer === _lrCP &&
     (state.question ? state.question.q : null) === _lrQ &&
-    state.roundHistory.length === _lrHistLen
+    state.roundHistory.length === _lrHistLen &&
+    state.qUsed === _lrQUsed
   );
   if (onlyTimer) { renderTimerOnly(); renderSidebar(); return; }
   _lrPhase   = state.phase;
   _lrCP      = state.currentPlayer;
   _lrQ       = state.question ? state.question.q : null;
   _lrHistLen = state.roundHistory.length;
+  _lrQUsed   = state.qUsed;
   render();
 });
 
