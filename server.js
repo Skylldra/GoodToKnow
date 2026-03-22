@@ -244,6 +244,14 @@ io.on('connection', socket => {
     pub();
   });
 
+  // Host resets a single player's vote so they can vote again
+  socket.on('resetVote', name => {
+    if (!['voting', 'tiebreak'].includes(G.phase)) return;
+    delete G.votes[name];
+    G.voted = G.voted.filter(v => v !== name);
+    pub();
+  });
+
   socket.on('resolveVotes', () => {
     if (!['voting', 'tiebreak'].includes(G.phase)) return;
     const pool   = G.phase === 'tiebreak' ? G.tiebreak
