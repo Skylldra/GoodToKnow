@@ -1,9 +1,7 @@
 'use strict';
 
 module.exports = [
-  { q: `In welchem Videospiel kämpft man in der Schlacht von Velen?`, a: `The Witcher 3: Wild Hunt` },
   { q: `Was ist 9 multipliziert mit 12?`, a: `108` },
-  { q: `Wie nennt man die Angst vor Spinnen?`, a: `Arachnophobie` },
   { q: `Welcher Planet ist bekannt für seine markanten Ringe?`, a: `Saturn` },
   { q: `Wie viele Kanten hat ein Würfel?`, a: `12` },
   { q: `Wie lange braucht ein Toast im Toaster auf Stufe 3?`, a: `3 Minuten` },
